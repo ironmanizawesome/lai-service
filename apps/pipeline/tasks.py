@@ -373,6 +373,37 @@ def process_measurement(self, measurement_id: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Cleanup beat task — removes stale NPZ files left by crashed workers
+# ---------------------------------------------------------------------------
+
+@shared_task(queue="cpu")
+def clean_stale_npz(max_age_days: int = 3) -> str:
+    """Delete NPZ files older than max_age_days from MEDIA_ROOT/npz/.
+
+    Normally NPZ is deleted immediately after a successful pipeline run.
+    This task is a safety net for files left behind by crashed workers.
+    """
+    import time
+
+    npz_dir = Path(settings.MEDIA_ROOT) / "npz"
+    if not npz_dir.exists():
+        return "npz dir not found — nothing to clean"
+
+    cutoff = time.time() - max_age_days * 86400
+    removed, skipped = [], []
+    for f in npz_dir.glob("*.npz"):
+        if f.stat().st_mtime < cutoff:
+            f.unlink(missing_ok=True)
+            removed.append(f.name)
+        else:
+            skipped.append(f.name)
+
+    msg = f"clean_stale_npz: removed {len(removed)}, kept {len(skipped)}"
+    print(f"[pipeline] {msg}")
+    return msg
+
+
+# ---------------------------------------------------------------------------
 # Legacy alias (kept so existing queued fake_process tasks don't break)
 # ---------------------------------------------------------------------------
 

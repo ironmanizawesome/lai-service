@@ -232,6 +232,14 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TIMEZONE = TIME_ZONE
 
+from celery.schedules import crontab as _crontab
+CELERY_BEAT_SCHEDULE = {
+    "clean-stale-npz-daily": {
+        "task": "apps.pipeline.tasks.clean_stale_npz",
+        "schedule": _crontab(hour=3, minute=0),  # 매일 새벽 3시 (워커 타임존 기준)
+    },
+}
+
 # ---- File upload limits ------------------------------------------------------
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB inline (videos stream to disk)

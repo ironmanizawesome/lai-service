@@ -24,5 +24,19 @@ if (-not (Test-Path $envFile)) {
 Set-Location $root
 $env:ENV_FILE = $envFile
 
+# Start celery beat in background (cleanup schedule)
+Write-Host "Starting celery beat (background)..." -ForegroundColor Yellow
+$beatJob = Start-Job -ScriptBlock {
+    param($py, $root, $envFile)
+    $env:ENV_FILE = $envFile
+    Set-Location $root
+    & $py -m celery -A laihub beat -l warning --scheduler celery.beat.PersistentScheduler
+} -ArgumentList $py, $root, $envFile
+
 Write-Host "Starting cloud-connected GPU worker (Q=cpu,gpu, pool=solo)..." -ForegroundColor Green
-& $py -m celery -A laihub worker -Q cpu,gpu --pool=solo -l info
+try {
+    & $py -m celery -A laihub worker -Q cpu,gpu --pool=solo -l info
+} finally {
+    Write-Host "Stopping beat..." -ForegroundColor Yellow
+    Stop-Job $beatJob -PassThru | Remove-Job
+}
