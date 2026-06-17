@@ -8,6 +8,13 @@
   {% if project.species %} · {{ project.species }}{% endif %}
   {% if project.planted_at %} · 심은 날: {{ project.planted_at|date:"Y-m-d" }}{% endif %}
 </p>
+{% if project.tags.all %}
+<p style="margin:.4rem 0;">
+  {% for tag in project.tags.all %}
+    <span style="display:inline-block;background:#dcfce7;color:#166534;border-radius:999px;padding:.15rem .7rem;font-size:.82rem;margin-right:.3rem;">#{{ tag.name }}</span>
+  {% endfor %}
+</p>
+{% endif %}
 {% if project.notes %}<p>{{ project.notes|linebreaks }}</p>{% endif %}
 
 <p>

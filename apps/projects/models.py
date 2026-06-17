@@ -5,6 +5,22 @@ from django.db import models
 from django.urls import reverse
 
 
+class Tag(models.Model):
+    """Free-form label shared across crop projects — a many-to-many (N:N) relation.
+
+    One project can carry several tags (e.g. "strawberry", "greenhouse-A", "bed-1")
+    and each tag groups many projects, so neither side "owns" the other.
+    """
+
+    name = models.CharField(max_length=40, unique=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class CropProject(models.Model):
     """A user's tracking space for one crop instance (a single bed, pot, or plant).
 
@@ -36,6 +52,12 @@ class CropProject(models.Model):
     )
     planted_at = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
+    tags = models.ManyToManyField(
+        Tag,
+        blank=True,
+        related_name="projects",
+        help_text="Shared labels grouping projects (many-to-many).",
+    )
     cover_thumb = models.ImageField(upload_to="thumbs/", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     archived_at = models.DateTimeField(null=True, blank=True)
