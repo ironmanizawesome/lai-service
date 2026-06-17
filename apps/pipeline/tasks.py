@@ -161,6 +161,8 @@ def _reconstruct(video_path: str, npz_path: Path, fps: int) -> None:
         "--first_k", "0",
         "--image_sizes", "644",
         "--max_frame_num", "1200",
+        "--max_frames", "600",
+        "--max_height", "364",
         "--use_sdpa",
         "--offload",
         "--mask_sky",
