@@ -158,10 +158,11 @@ def _reconstruct(video_path: str, npz_path: Path, fps: int) -> None:
         "--model_path", str(model_abs),
         "--video_path", video_path,
         "--fps", str(fps),
-        "--first_k", "50",
+        "--first_k", "0",
         "--image_sizes", "644",
-        "--max_frame_num", "50",
+        "--max_frame_num", "1200",
         "--use_sdpa",
+        "--offload",
         "--mask_sky",
         "--out_dir", out_dir,
     ]
