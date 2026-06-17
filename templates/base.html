@@ -1,0 +1,67 @@
+{% load static %}<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}LAI Service{% endblock %}</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f7f8; --fg: #111; --muted: #666; --accent: #2563eb;
+      --card: #fff; --border: #e5e7eb;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0b0d0e; --fg: #f0f0f0; --muted: #999; --card: #161819; --border: #2a2c2e; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: var(--bg); color: var(--fg); padding-bottom: 80px; }
+    header { padding: 1rem; border-bottom: 1px solid var(--border); display: flex;
+             justify-content: space-between; align-items: center; }
+    header a { color: var(--fg); text-decoration: none; font-weight: 600; }
+    main { padding: 1rem; max-width: 720px; margin: 0 auto; }
+    .nav-bottom { position: fixed; bottom: 0; left: 0; right: 0; display: flex;
+                  justify-content: space-around; background: var(--card);
+                  border-top: 1px solid var(--border); padding: 0.5rem 0; z-index: 100; }
+    .nav-bottom a { color: var(--muted); text-decoration: none; padding: 0.5rem 1rem;
+                    font-size: 0.85rem; min-height: 44px; min-width: 44px;
+                    display: flex; align-items: center; justify-content: center; }
+    .nav-bottom a.active { color: var(--accent); font-weight: 600; }
+    .btn { display: inline-block; padding: 0.75rem 1.25rem; background: var(--accent);
+           color: white; border-radius: 8px; border: 0; text-decoration: none;
+           font-weight: 500; cursor: pointer; min-height: 44px; }
+    .btn-secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            padding: 1rem; margin-bottom: 0.75rem; }
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+    h1, h2 { margin: 0 0 1rem; }
+    .muted { color: var(--muted); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="{% url 'core:home' %}">🌱 LAI</a>
+    <div>
+      {% if user.is_authenticated %}
+        <span class="muted">{{ user.display_name|default:user.email }}</span>
+        <form method="post" action="{% url 'account_logout' %}" style="display:inline">
+          {% csrf_token %}<button class="btn btn-secondary" type="submit">로그아웃</button>
+        </form>
+      {% else %}
+        <a class="btn" href="{% url 'account_login' %}">로그인</a>
+      {% endif %}
+    </div>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  {% if user.is_authenticated %}
+  <nav class="nav-bottom">
+    <a href="{% url 'projects:dashboard' %}" class="{% if request.resolver_match.namespace == 'projects' %}active{% endif %}">내 작물</a>
+    <a href="{% url 'projects:create' %}">+ 새 작물</a>
+    <a href="#" class="muted">계정</a>
+  </nav>
+  {% endif %}
+</body>
+</html>

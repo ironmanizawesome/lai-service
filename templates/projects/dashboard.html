@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}내 작물{% endblock %}
+{% block content %}
+<h1>내 작물</h1>
+
+{% if projects %}
+  {% for project in projects %}
+    <div class="card">
+      <h2>{{ project.name }}</h2>
+      <p class="muted">
+        {{ project.get_crop_type_display }}
+        {% if project.species %} · {{ project.species }}{% endif %}
+        {% if project.planted_at %} · 심은 날: {{ project.planted_at|date:"Y-m-d" }}{% endif %}
+      </p>
+      <p class="muted">측정 회차 {{ project.measurements.count }}회</p>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="empty">
+    <p>아직 등록한 작물이 없어요.</p>
+    <p class="muted">M2 단계에서 작물 추가/측정 폼이 활성화됩니다.</p>
+  </div>
+{% endif %}
+{% endblock %}

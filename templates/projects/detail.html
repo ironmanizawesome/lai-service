@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block content %}
+<h1>{{ project.name }}</h1>
+<p class="muted">
+  {{ project.get_crop_type_display }}
+  {% if project.species %} · {{ project.species }}{% endif %}
+  {% if project.planted_at %} · 심은 날: {{ project.planted_at|date:"Y-m-d" }}{% endif %}
+</p>
+{% if project.notes %}<p>{{ project.notes|linebreaks }}</p>{% endif %}
+
+<p><a href="{% url 'projects:measure' project.pk %}" class="btn">📸 새 측정</a></p>
+
+<h2 style="margin-top: 2rem;">측정 회차</h2>
+{% with measurements=project.measurements.all %}
+  {% if measurements %}
+    {% for m in measurements %}
+      <div class="card">
+        <p>
+          <a href="{% url 'measurements:detail' m.pk %}" style="color: var(--accent);">
+            {{ m.captured_at|date:"Y-m-d H:i" }}
+          </a>
+        </p>
+        <p class="muted">
+          상태: {{ m.get_status_display }}
+          {% if m.status == "done" and m.result %}
+            · 피복률 {{ m.result.agg_cover_fraction|floatformat:2 }}
+            · LAI {{ m.result.agg_column_lai|floatformat:2 }}
+          {% endif %}
+        </p>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="muted">아직 측정 기록이 없어요. "새 측정"으로 영상을 올려보세요.</p>
+  {% endif %}
+{% endwith %}
+{% endblock %}

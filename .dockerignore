@@ -1,0 +1,26 @@
+.venv/
+**/__pycache__/
+*.pyc
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Local artifacts
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# Logs from dev runs
+*.log
+celery.pid
+
+# Secrets
+.env
+.env.local
+
+# Docs
+README.md
+NOTICE
+LICENSE

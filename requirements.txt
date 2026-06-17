@@ -1,0 +1,31 @@
+# M1 dependencies — Django skeleton + accounts + dashboard
+# Pin to current stable versions; bump intentionally in later milestones.
+
+# Core (Django 5.2 LTS — supports Python 3.10~3.13)
+Django>=5.2,<5.3
+django-environ>=0.11,<1.0
+
+# Auth (Google OAuth + email/password)
+django-allauth[socialaccount]>=64.0
+PyJWT>=2.8                          # required by allauth's google provider
+cryptography>=42.0                  # required by allauth (id_token verification)
+requests>=2.31                      # allauth + outbound HTTP
+
+# Async pipeline (added now so settings.py is final; tasks come in M2/M3)
+celery>=5.4,<6.0
+redis>=5.0,<6.0
+
+# Files / images
+Pillow>=10.0                        # ImageField, PNG generation
+
+# Pipeline compute (analyze + render_preview run in CPU worker)
+numpy>=1.26
+scipy>=1.12
+matplotlib>=3.8
+
+# Production server (used from M5/M6; safe to install now)
+gunicorn>=21.0
+whitenoise>=6.6                     # static files in production
+
+# Dev tooling
+django-extensions>=3.2              # shell_plus, runserver_plus

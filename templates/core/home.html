@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}LAI Service — 작물 LAI 분석{% endblock %}
+{% block content %}
+<h1>🌱 작물 LAI 측정 서비스</h1>
+<p class="muted">폰으로 작물 영상을 올리면 LAI(엽면적지수) 측정·추세·예측을 받을 수 있어요.</p>
+
+{% if user.is_authenticated %}
+  <p><a class="btn" href="{% url 'projects:dashboard' %}">내 작물 보기</a></p>
+{% else %}
+  <p>
+    <a class="btn" href="{% url 'account_signup' %}">시작하기</a>
+    <a class="btn btn-secondary" href="{% url 'account_login' %}">로그인</a>
+  </p>
+{% endif %}
+
+<div class="card" style="margin-top: 2rem;">
+  <h2>현재 상태</h2>
+  <p class="muted">M1 단계 — 골격 구축 중. 영상 업로드/분석 기능은 곧 활성화됩니다.</p>
+</div>
+{% endblock %}

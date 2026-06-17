@@ -1,0 +1,66 @@
+# M2 dev stack — Redis + Django web + Celery worker.
+# Postgres comes in M6 (production split). GPU worker comes in M3.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build
+#   docker compose -f docker-compose.dev.yml down
+#
+# Run from `c:\Users\ironm\dev\lai-service\`.
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: laihub-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: laihub-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - .:/app
+      # Mask the host `.venv` so the container's system-Python deps stay in scope.
+      - /app/.venv
+      - /app/__pycache__
+    environment:
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:-dev-compose-insecure}"
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,web"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: python manage.py runserver 0.0.0.0:8000
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: laihub-worker
+    restart: unless-stopped
+    volumes:
+      - .:/app
+      - /app/.venv
+      - /app/__pycache__
+    environment:
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:-dev-compose-insecure}"
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: celery -A laihub worker -Q cpu --pool=solo -l info

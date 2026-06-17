@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}측정 — {{ project.name }}{% endblock %}
+{% block content %}
+<h1>📸 새 측정</h1>
+<p class="muted">{{ project.name }} · {{ project.get_crop_type_display }}</p>
+
+<form method="post" enctype="multipart/form-data" class="card" style="padding: 1.5rem;">
+  {% csrf_token %}
+  <div style="margin-bottom: 1rem;">
+    <label for="{{ form.video.id_for_label }}" style="display:block; font-weight:500; margin-bottom:0.3rem;">
+      영상 파일 <span style="color:#e11">*</span>
+    </label>
+    {{ form.video }}
+    <small class="muted">mp4, mov, webm. 최대 200MB. 모바일은 카메라 직접 촬영 가능.</small>
+    {% if form.video.errors %}<div style="color:#e11">{{ form.video.errors }}</div>{% endif %}
+  </div>
+  <div style="margin-bottom: 1rem;">
+    <label for="{{ form.captured_at.id_for_label }}" style="display:block; font-weight:500; margin-bottom:0.3rem;">
+      촬영 시각
+    </label>
+    {{ form.captured_at }}
+    {% if form.captured_at.errors %}<div style="color:#e11">{{ form.captured_at.errors }}</div>{% endif %}
+  </div>
+  <div style="margin-bottom: 1rem;">
+    <label for="{{ form.scale_ref_m.id_for_label }}" style="display:block; font-weight:500; margin-bottom:0.3rem;">
+      화분 지름 (m) — 선택
+    </label>
+    {{ form.scale_ref_m }}
+    <small class="muted">알려진 화분 지름 (예: 0.20). volume LAI 스케일 앵커.</small>
+    {% if form.scale_ref_m.errors %}<div style="color:#e11">{{ form.scale_ref_m.errors }}</div>{% endif %}
+  </div>
+  <button type="submit" class="btn">업로드 + 분석 시작</button>
+  <a href="{% url 'projects:detail' project.pk %}" class="btn btn-secondary">취소</a>
+</form>
+<style>
+  form input, form select {
+    width: 100%; padding: 0.65rem; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--card); color: var(--fg); font-size: 1rem;
+  }
+</style>
+{% endblock %}

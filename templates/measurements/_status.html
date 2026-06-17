@@ -1,0 +1,23 @@
+{% if m.status == "done" %}
+  <div class="card" id="status">
+    <p>✅ 완료! 결과 페이지로 이동합니다…</p>
+  </div>
+  <script>setTimeout(function(){window.location.href="{% url 'measurements:detail' m.pk %}";}, 600);</script>
+{% elif m.status == "failed" %}
+  <div class="card" id="status" style="border-color:#e11;">
+    <p style="color:#e11;"><strong>❌ 실패</strong></p>
+    {% if m.error_trace %}<p class="muted">{{ m.error_trace|truncatechars:300 }}</p>{% endif %}
+    <a href="{% url 'projects:detail' m.project.pk %}" class="btn btn-secondary">돌아가기</a>
+  </div>
+{% else %}
+  <div class="card"
+       id="status"
+       hx-get="{% url 'measurements:status' m.pk %}"
+       hx-trigger="every 3s"
+       hx-swap="outerHTML">
+    <p><strong>{{ m.get_status_display }}</strong></p>
+    {% if m.status_msg %}<p class="muted">{{ m.status_msg }}</p>{% endif %}
+    <progress value="{{ m.progress_pct }}" max="100" style="width:100%;"></progress>
+    <p class="muted">{{ m.progress_pct }}%</p>
+  </div>
+{% endif %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}새 작물{% endblock %}
+{% block content %}
+<h1>새 작물 등록</h1>
+<form method="post" class="card" style="padding: 1.5rem;">
+  {% csrf_token %}
+  {% for field in form %}
+    <div style="margin-bottom: 1rem;">
+      <label for="{{ field.id_for_label }}" style="display:block; font-weight:500; margin-bottom:0.3rem;">
+        {{ field.label }}{% if field.field.required %} <span style="color:#e11">*</span>{% endif %}
+      </label>
+      {{ field }}
+      {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
+      {% if field.errors %}<div style="color:#e11; margin-top:0.25rem;">{{ field.errors }}</div>{% endif %}
+    </div>
+  {% endfor %}
+  <button type="submit" class="btn">저장</button>
+  <a href="{% url 'projects:dashboard' %}" class="btn btn-secondary">취소</a>
+</form>
+<style>
+  form input, form select, form textarea {
+    width: 100%; padding: 0.65rem; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--card); color: var(--fg); font-size: 1rem;
+  }
+</style>
+{% endblock %}

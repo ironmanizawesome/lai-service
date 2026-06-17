@@ -1,0 +1,17 @@
+LAI Service
+Copyright 2026 LAI Service Contributors
+
+This product includes software developed by the Robbyant Team
+(LingBot-Map, https://github.com/robbyant/lingbot-map),
+licensed under the Apache License, Version 2.0.
+
+Additional third-party components used at runtime:
+
+- Django (BSD-3-Clause) — https://www.djangoproject.com/
+- Celery (BSD-3-Clause) — https://docs.celeryq.dev/
+- django-allauth (MIT) — https://django-allauth.readthedocs.io/
+- redis-py (MIT) — https://github.com/redis/redis-py
+- Pillow (HPND) — https://python-pillow.org/
+- matplotlib (PSF-based / BSD-compatible) — https://matplotlib.org/
+- Chart.js (MIT, used via CDN) — https://www.chartjs.org/
+- HTMX (0BSD, used via CDN) — https://htmx.org/

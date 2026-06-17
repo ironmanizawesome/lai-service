@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}측정 — {{ measurement.captured_at|date:"Y-m-d H:i" }}{% endblock %}
+{% block content %}
+<h1>측정 결과</h1>
+<p class="muted">
+  <a href="{% url 'projects:detail' measurement.project.pk %}" style="color: var(--accent);">
+    {{ measurement.project.name }}
+  </a>
+  · {{ measurement.captured_at|date:"Y-m-d H:i" }}
+</p>
+
+{% if measurement.status != "done" %}
+  {% include "measurements/_status.html" with m=measurement %}
+{% else %}
+  <div class="card">
+    <h2>LAI 결과 <small class="muted">(M2 더미)</small></h2>
+    <p>피복률 (cover_fraction): <strong>{{ measurement.result.agg_cover_fraction|floatformat:3 }}</strong></p>
+    <p>column LAI (본선): <strong>{{ measurement.result.agg_column_lai|floatformat:2 }}</strong></p>
+    <p>convex LAI (참고): <strong>{{ measurement.result.agg_volume_lai|floatformat:2 }}</strong></p>
+    <p>평균 캐노피 높이: <strong>{{ measurement.result.agg_mean_height_m|floatformat:3 }}m</strong></p>
+    <p class="muted">컴포넌트 수: {{ measurement.result.n_components }}</p>
+  </div>
+
+  <div class="card">
+    <h2>컴포넌트별</h2>
+    {% for c in measurement.result.components.all %}
+      <details>
+        <summary>#{{ c.comp_index }} · 피복률 {{ c.cover_fraction|floatformat:3 }}</summary>
+        <p>점 개수: {{ c.n_points }}</p>
+        <p>잎 영역: {{ c.leaf_area_m2|default_if_none:"—"|floatformat:3 }} m²</p>
+        <p>높이: {{ c.mean_height_m|default_if_none:"—"|floatformat:3 }} m</p>
+      </details>
+    {% endfor %}
+  </div>
+
+  <p class="muted" style="margin-top: 1rem;">
+    ⚠️ M2 단계: 위 값들은 가짜 placeholder입니다. M3에서 진짜 LAI 파이프라인이 붙습니다.
+  </p>
+{% endif %}
+{% endblock %}
