@@ -27,20 +27,21 @@
   {% with measurements=project.measurements.all %}
     {% if measurements %}
       {% for m in measurements %}
-        <div class="card">
-          <p>
-            <a href="{% url 'measurements:detail' m.pk %}" style="color:var(--accent);">
-              {{ m.captured_at|date:"Y-m-d H:i" }}
-            </a>
-          </p>
-          <p class="muted">
-            상태: {{ m.get_status_display }}
-            {% if m.status == "done" and m.result %}
-              · 피복률 {{ m.result.agg_cover_fraction|floatformat:2 }}
-              · LAI {{ m.result.agg_column_lai|floatformat:2 }}
-            {% endif %}
-          </p>
-        </div>
+        <a href="{% url 'measurements:detail' m.pk %}" class="card measure-row">
+          <div class="measure-main">
+            <p class="measure-date">{{ m.captured_at|date:"Y-m-d H:i" }}</p>
+            <p class="muted measure-status">
+              {% if m.status == "done" %}✅ 완료
+              {% elif m.status == "failed" %}❌ 실패
+              {% else %}⏳ {{ m.get_status_display }}{% endif %}
+              {% if m.status == "done" and m.result %}
+                · 피복률 {{ m.result.agg_cover_fraction|floatformat:2 }}
+                · LAI {{ m.result.agg_column_lai|floatformat:2 }}
+              {% endif %}
+            </p>
+          </div>
+          <span class="measure-chevron" aria-hidden="true">›</span>
+        </a>
       {% endfor %}
     {% else %}
       <p class="muted">아직 측정 기록이 없어요. "새 측정"으로 영상을 올려보세요.</p>

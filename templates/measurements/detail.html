@@ -4,7 +4,7 @@
 <h1>측정 결과</h1>
 <p class="muted">
   <a href="{% url 'projects:detail' measurement.project.pk %}" style="color: var(--accent);">
-    {{ measurement.project.name }}
+    ‹ {{ measurement.project.name }}
   </a>
   · {{ measurement.captured_at|date:"Y-m-d H:i" }}
 </p>
@@ -12,29 +12,64 @@
 {% if measurement.status != "done" %}
   {% include "measurements/_status.html" with m=measurement %}
 {% else %}
+  {# ── 3D 미리보기 ──────────────────────────────────────────────── #}
+  {% if measurement.result.preview %}
+    <div class="card">
+      <img src="{{ measurement.result.preview.image.url }}"
+           alt="3D 미리보기"
+           style="width:100%; border-radius:8px; display:block;">
+      <p class="muted" style="margin:0.5rem 0 0; text-align:center;">
+        잎 포인트 3D 미리보기 (높이별 색)
+      </p>
+    </div>
+  {% endif %}
+
+  {# ── 집계 지표 ────────────────────────────────────────────────── #}
   <div class="card">
-    <h2>LAI 결과 <small class="muted">(M2 더미)</small></h2>
-    <p>피복률 (cover_fraction): <strong>{{ measurement.result.agg_cover_fraction|floatformat:3 }}</strong></p>
-    <p>column LAI (본선): <strong>{{ measurement.result.agg_column_lai|floatformat:2 }}</strong></p>
-    <p>convex LAI (참고): <strong>{{ measurement.result.agg_volume_lai|floatformat:2 }}</strong></p>
-    <p>평균 캐노피 높이: <strong>{{ measurement.result.agg_mean_height_m|floatformat:3 }}m</strong></p>
-    <p class="muted">컴포넌트 수: {{ measurement.result.n_components }}</p>
+    <h2>LAI 요약</h2>
+    <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+      <div>
+        <p class="muted" style="margin:0;">column LAI (본선)</p>
+        <p style="margin:0; font-size:1.6rem; font-weight:700; color:var(--accent);">
+          {{ measurement.result.agg_column_lai|floatformat:2 }}
+        </p>
+      </div>
+      <div>
+        <p class="muted" style="margin:0;">피복률</p>
+        <p style="margin:0; font-size:1.6rem; font-weight:700;">
+          {{ measurement.result.agg_cover_fraction|floatformat:2 }}
+        </p>
+      </div>
+    </div>
+    <p class="muted" style="margin:0.75rem 0 0;">
+      총 캐노피 부피 {{ measurement.result.agg_volume_lai|default_if_none:"—"|floatformat:3 }} m³
+      · 컴포넌트(화분/베드) {{ measurement.result.n_components }}개
+    </p>
   </div>
 
+  {# ── 컴포넌트별 ───────────────────────────────────────────────── #}
   <div class="card">
-    <h2>컴포넌트별</h2>
+    <h2>컴포넌트별 ({{ measurement.result.n_components }})</h2>
     {% for c in measurement.result.components.all %}
-      <details>
-        <summary>#{{ c.comp_index }} · 피복률 {{ c.cover_fraction|floatformat:3 }}</summary>
-        <p>점 개수: {{ c.n_points }}</p>
-        <p>잎 영역: {{ c.leaf_area_m2|default_if_none:"—"|floatformat:3 }} m²</p>
-        <p>높이: {{ c.mean_height_m|default_if_none:"—"|floatformat:3 }} m</p>
+      <details {% if forloop.first %}open{% endif %}>
+        <summary>
+          #{{ c.comp_index }} · LAI {{ c.volume_lai|default_if_none:"—"|floatformat:2 }}
+          · 피복률 {{ c.cover_fraction|floatformat:2 }}
+        </summary>
+        <p class="muted" style="margin:0.4rem 0 0;">
+          잎 영역 {{ c.leaf_area_m2|default_if_none:"—"|floatformat:3 }} m²
+          · 평균 높이 {{ c.mean_height_m|default_if_none:"—"|floatformat:3 }} m
+          · 점 {{ c.n_points }}개
+        </p>
       </details>
+    {% empty %}
+      <p class="muted">컴포넌트가 검출되지 않았습니다.</p>
     {% endfor %}
   </div>
 
-  <p class="muted" style="margin-top: 1rem;">
-    ⚠️ M2 단계: 위 값들은 가짜 placeholder입니다. M3에서 진짜 LAI 파이프라인이 붙습니다.
+  <p style="margin-top:1rem;">
+    <a href="{% url 'projects:measure' measurement.project.pk %}" class="btn">📸 또 측정</a>
+    <a href="{% url 'projects:detail' measurement.project.pk %}" class="btn btn-secondary">추세 보기</a>
   </p>
 {% endif %}
 {% endblock %}

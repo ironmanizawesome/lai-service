@@ -45,6 +45,15 @@
     .btn-secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
             padding: 1rem; margin-bottom: 0.75rem; }
+    /* Whole-card tappable rows (mobile-friendly large target) */
+    a.measure-row { display: flex; align-items: center; gap: 0.5rem;
+                    text-decoration: none; color: var(--fg); }
+    a.measure-row:active { background: var(--bg); }
+    .measure-main { flex: 1; min-width: 0; }
+    .measure-date { margin: 0 0 0.25rem; font-weight: 600; }
+    .measure-status { margin: 0; }
+    .measure-chevron { color: var(--muted); font-size: 1.6rem; line-height: 1;
+                       flex-shrink: 0; }
     .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
     h1, h2 { margin: 0 0 1rem; }
     .muted { color: var(--muted); font-size: 0.9rem; }
