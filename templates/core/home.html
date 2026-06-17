@@ -1,25 +1,76 @@
 {% extends "base.html" %}
-{% block title %}LAI Service — 작물 LAI 분석{% endblock %}
+{% block title %}LAI Service — AI 작물 엽면적지수 분석{% endblock %}
 {% block content %}
-<h1>🌱 작물 LAI 측정 서비스</h1>
-<p class="muted">폰으로 작물 영상을 올리면 LAI(엽면적지수) 측정·추세·예측을 받을 수 있어요.</p>
 
 {% if user.is_authenticated %}
-  <p><a class="btn" href="{% url 'projects:dashboard' %}">내 작물 보기</a></p>
-{% else %}
-  <p>
-    <a class="btn" href="{% url 'account_signup' %}">시작하기</a>
-    <a class="btn btn-secondary" href="{% url 'account_login' %}">로그인</a>
-  </p>
-{% endif %}
+  {# 로그인 상태면 대시보드 바로 안내 #}
+  <div style="text-align:center; padding: 3rem 1rem;">
+    <p style="font-size:1.1rem;">반갑습니다, <strong>{{ user.display_name|default:user.email }}</strong>님</p>
+    <a class="btn" href="{% url 'projects:dashboard' %}" style="font-size:1.1rem; padding:1rem 2rem;">내 작물 보기</a>
+  </div>
 
-<div class="card" style="margin-top: 2rem;">
-  <h2>어떻게 쓰나요?</h2>
-  <ol class="muted" style="line-height:1.8;padding-left:1.2rem;">
-    <li>작물을 하나 등록하고</li>
-    <li>주기적으로 폰으로 영상을 찍어 올리면</li>
-    <li>LAI 측정값과 추세·예측 그래프를 받아볼 수 있어요.</li>
-  </ol>
-  <p class="muted" style="margin-top:1rem;">홈 화면에 추가하면 앱처럼 쓸 수 있습니다.</p>
-</div>
+{% else %}
+  {# ── Hero ────────────────────────────────────────────────────────── #}
+  <section style="text-align:center; padding: 3rem 1rem 2rem;">
+    <div style="font-size:3rem; margin-bottom:0.5rem;">🌱</div>
+    <h1 style="font-size:2rem; margin:0 0 0.75rem; line-height:1.2;">
+      AI로 측정하는<br>작물 엽면적지수
+    </h1>
+    <p class="muted" style="font-size:1.05rem; max-width:480px; margin:0 auto 2rem;">
+      폰 영상 하나로 3D 재건 → LAI 자동 계산 → 시계열 추세까지.<br>
+      온실 화분부터 베드 작물까지 지원합니다.
+    </p>
+    <div style="display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
+      <a class="btn" href="{% url 'account_signup' %}" style="font-size:1.05rem; padding:0.9rem 2rem;">
+        무료로 시작하기
+      </a>
+      <a class="btn btn-secondary" href="{% url 'account_login' %}" style="font-size:1.05rem; padding:0.9rem 2rem;">
+        로그인
+      </a>
+    </div>
+  </section>
+
+  {# ── How it works ────────────────────────────────────────────────── #}
+  <section style="margin-top:2.5rem;">
+    <h2 style="text-align:center; margin-bottom:1.25rem;">어떻게 동작하나요?</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:0.75rem;">
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2rem; margin-bottom:0.5rem;">📱</div>
+        <h3 style="margin:0 0 0.4rem; font-size:1rem;">1. 영상 촬영</h3>
+        <p class="muted" style="margin:0; font-size:0.88rem;">작물 주변을 10~15초 천천히 촬영하거나 갤러리에서 파일을 업로드해요.</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2rem; margin-bottom:0.5rem;">🧠</div>
+        <h3 style="margin:0 0 0.4rem; font-size:1rem;">2. AI 3D 분석</h3>
+        <p class="muted" style="margin:0; font-size:0.88rem;">LingBot-Map이 영상을 3D 포인트 클라우드로 재건하고 잎 영역을 자동 분리해요.</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2rem; margin-bottom:0.5rem;">📊</div>
+        <h3 style="margin:0 0 0.4rem; font-size:1rem;">3. LAI + 추세</h3>
+        <p class="muted" style="margin:0; font-size:0.88rem;">엽면적지수·피복률·부피 LAI와 시계열 추세·예측 그래프를 받아요.</p>
+      </div>
+    </div>
+  </section>
+
+  {# ── Features ────────────────────────────────────────────────────── #}
+  <section style="margin-top:2rem;">
+    <h2 style="text-align:center; margin-bottom:1.25rem;">주요 기능</h2>
+    <div class="card">
+      <ul style="margin:0; padding-left:1.2rem; line-height:2;">
+        <li>화분·베드 단위 <strong>per-component LAI</strong> 자동 분리</li>
+        <li>3D 포인트 클라우드 <strong>미리보기 이미지</strong> 제공</li>
+        <li>측정 이력 기반 <strong>LAI 추세 + 14일 예측</strong></li>
+        <li>모바일 최적화 PWA — <strong>홈 화면 추가</strong> 지원</li>
+        <li>영상·결과 파일 <strong>클라우드 보관</strong> (Cloudflare R2)</li>
+      </ul>
+    </div>
+  </section>
+
+  {# ── Footer CTA ──────────────────────────────────────────────────── #}
+  <section style="text-align:center; padding:2.5rem 1rem 1rem;">
+    <p class="muted" style="margin-bottom:1rem;">계정을 만들면 바로 시작할 수 있어요.</p>
+    <a class="btn" href="{% url 'account_signup' %}">무료로 시작하기</a>
+  </section>
+
+{% endif %}
 {% endblock %}

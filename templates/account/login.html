@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load allauth account %}
+{% block title %}로그인 — LAI Service{% endblock %}
+{% block content %}
+<div style="max-width:400px; margin:2rem auto;">
+  <h1 style="text-align:center; margin-bottom:0.25rem;">로그인</h1>
+  <p class="muted" style="text-align:center; margin-bottom:1.5rem;">
+    계정이 없으신가요? <a href="{% url 'account_signup' %}" style="color:var(--accent);">회원가입</a>
+  </p>
+
+  <div class="card">
+    {% if form.errors %}
+      <div style="background:#fee2e2; color:#b91c1c; border-radius:8px; padding:0.75rem 1rem; margin-bottom:1rem; font-size:0.9rem;">
+        이메일 또는 비밀번호가 올바르지 않아요.
+      </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'account_login' %}">
+      {% csrf_token %}
+      {% if redirect_field_value %}
+        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+      {% endif %}
+
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-weight:500; margin-bottom:0.4rem;">이메일</label>
+        <input type="email" name="login" value="{{ form.login.value|default:'' }}"
+               autocomplete="email" autofocus required
+               style="width:100%; padding:0.75rem; border:1px solid var(--border); border-radius:8px;
+                      background:var(--bg); color:var(--fg); font-size:1rem;">
+      </div>
+
+      <div style="margin-bottom:0.5rem;">
+        <label style="display:block; font-weight:500; margin-bottom:0.4rem;">비밀번호</label>
+        <input type="password" name="password" autocomplete="current-password" required
+               style="width:100%; padding:0.75rem; border:1px solid var(--border); border-radius:8px;
+                      background:var(--bg); color:var(--fg); font-size:1rem;">
+      </div>
+
+      <p style="text-align:right; margin:0.25rem 0 1.25rem;">
+        <a href="{% url 'account_reset_password' %}" class="muted" style="font-size:0.88rem;">비밀번호 찾기</a>
+      </p>
+
+      <button type="submit" class="btn" style="width:100%; font-size:1.05rem;">
+        로그인
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
