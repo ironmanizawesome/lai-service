@@ -99,7 +99,9 @@
         datasets: data.datasets.map(ds => ({
           ...ds,
           fill: true,
-          parsing: false,  // data already {x, y}
+          // x is an ISO date string ("YYYY-MM-DD") on a time axis — let Chart.js
+          // parse it via the date adapter. parsing:false would skip parsing and
+          // the time scale would get raw strings, drawing no line.
         })),
       };
 

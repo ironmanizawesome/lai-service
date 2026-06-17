@@ -57,3 +57,6 @@ htmlcov/
 # Docker volumes (local dev)
 postgres-data/
 redis-data/
+
+# Celery beat runtime schedule files
+celerybeat-schedule*
