@@ -13,9 +13,12 @@ when the GPU worker runs on a different machine.
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import json
+import os
 import subprocess
+import tempfile
 import traceback
 from io import BytesIO
 from pathlib import Path
@@ -27,6 +30,7 @@ import numpy as np
 from celery import shared_task
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.utils import timezone
 
 
@@ -79,21 +83,57 @@ def _unproject_for_preview(
 # Pipeline stages
 # ---------------------------------------------------------------------------
 
-def _kickoff(m) -> str:
-    """Validate video exists and is parseable by ffprobe. Returns video path."""
-    video_path = m.video.path
-    if not Path(video_path).exists():
-        raise FileNotFoundError(f"Video file not found: {video_path}")
+def _kickoff(m) -> None:
+    """Validate that a video is attached and present in the storage backend.
 
-    result = subprocess.run(
-        ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", video_path],
-        capture_output=True, text=True, timeout=30,
-    )
-    if result.returncode != 0:
-        # Non-fatal: log and continue — ffprobe may not be on PATH in dev
-        print(f"[pipeline] ffprobe warning (non-fatal): {result.stderr[:200]}")
+    Works for both local FileSystemStorage (dev) and S3/R2 (prod): we check
+    existence by storage name rather than touching a local path, since under
+    object storage there is no local file until _local_video downloads it.
+    """
+    if not m.video or not m.video.name:
+        raise FileNotFoundError("No video attached to this measurement")
+    if not default_storage.exists(m.video.name):
+        raise FileNotFoundError(f"Video not found in storage: {m.video.name}")
 
-    return video_path
+
+@contextlib.contextmanager
+def _local_video(m):
+    """Yield a local filesystem path to the measurement's video.
+
+    The GPU subprocess (precompute_npz.py) needs a real local file. Local
+    FileSystemStorage already exposes one via .path; object storage (R2) does
+    not, so we stream the upload to a temp file and remove it afterwards.
+    """
+    f = m.video
+    try:
+        local_path = f.path             # FileSystemStorage → real path
+    except (NotImplementedError, ValueError):
+        local_path = None               # S3/R2 → no local path
+
+    if local_path is not None:
+        if not Path(local_path).exists():
+            raise FileNotFoundError(f"Video file not found: {local_path}")
+        yield local_path
+        return
+
+    # Name the temp file with the measurement id (not a random tempname) so
+    # precompute_npz.py derives the expected "<id>_644.npz" output from the
+    # video stem — matching npz_path computed by the caller.
+    suffix = Path(f.name).suffix or ".mp4"
+    tmpdir = tempfile.mkdtemp(prefix="laivideo_")
+    local = os.path.join(tmpdir, f"{m.id}{suffix}")
+    try:
+        f.open("rb")
+        with open(local, "wb") as out:
+            for chunk in f.chunks():
+                out.write(chunk)
+        f.close()
+        yield local
+    finally:
+        with contextlib.suppress(OSError):
+            os.remove(local)
+        with contextlib.suppress(OSError):
+            os.rmdir(tmpdir)
 
 
 def _reconstruct(video_path: str, npz_path: Path, fps: int) -> None:
@@ -226,19 +266,22 @@ def process_measurement(self, measurement_id: str) -> str:
     try:
         media_root = Path(settings.MEDIA_ROOT)
 
-        # ── 1. Kickoff: validate video ────────────────────────────────────────
+        # ── 1. Kickoff: validate the video is present in storage ──────────────
         _set_status(m, "extracting", "영상 검증 중", 10)
-        video_path = _kickoff(m)
+        _kickoff(m)
 
         # ── 2. Reconstruct: precompute_npz → NPZ ─────────────────────────────
+        # The GPU subprocess needs a real local file. _local_video returns the
+        # FileSystemStorage path directly (dev) or streams the R2 upload to a
+        # temp file (prod). The NPZ stays on the worker's local disk — the web
+        # tier never reads it (only the preview PNG + DB rows).
         _set_status(m, "reconstruct", "3D 재건 중 (LingBot-Map)", 25)
 
         npz_dir = media_root / "npz"
-        # Video filename stem is the measurement UUID (see upload_video_path)
-        video_stem = Path(video_path).stem
-        npz_path = npz_dir / f"{video_stem}_644.npz"
+        npz_path = npz_dir / f"{m.id}_644.npz"
 
-        _reconstruct(video_path, npz_path, fps=m.fps_target)
+        with _local_video(m) as video_path:
+            _reconstruct(video_path, npz_path, fps=m.fps_target)
 
         # ── 3. Analyze: pipeline.run_pipeline → JSON ──────────────────────────
         _set_status(m, "analyzing", "LAI 계산 중", 65)
@@ -250,12 +293,13 @@ def process_measurement(self, measurement_id: str) -> str:
 
         lai_result = _analyze(npz_path, crop=crop_name, scale_factor=scale)
 
-        # Save raw JSON alongside NPZ
-        json_dir = media_root / "results"
-        json_dir.mkdir(parents=True, exist_ok=True)
-        json_path = json_dir / f"{m.id}.json"
-        json_path.write_text(
-            json.dumps(lai_result, indent=2, ensure_ascii=False), encoding="utf-8"
+        # Persist raw JSON through the storage backend (→ R2 in prod) so the web
+        # tier can serve it even when the worker runs on a different machine.
+        json_name = default_storage.save(
+            f"results/{m.id}.json",
+            ContentFile(
+                json.dumps(lai_result, indent=2, ensure_ascii=False).encode("utf-8")
+            ),
         )
 
         # ── 4. Render preview PNG ─────────────────────────────────────────────
@@ -271,7 +315,7 @@ def process_measurement(self, measurement_id: str) -> str:
             agg_column_lai=lai_result["agg_column_lai"],
             agg_volume_lai=lai_result.get("agg_volume_m3"),
             npz_path=str(npz_path.relative_to(media_root)),
-            raw_lai_json_path=str(json_path.relative_to(media_root)),
+            raw_lai_json_path=json_name,
         )
 
         for comp in lai_result["components"]:

@@ -4,6 +4,7 @@ Settings are read from environment variables via django-environ. See `.env.examp
 for the list of variables; copy to `.env` for local development.
 """
 
+import os
 from pathlib import Path
 
 import environ
@@ -14,7 +15,9 @@ env = environ.Env(
     DJANGO_DEBUG=(bool, False),
     DJANGO_ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1"]),
 )
-environ.Env.read_env(BASE_DIR / ".env")
+# ENV_FILE lets the home GPU worker load a separate env file (cloud DB/Redis/R2)
+# without clobbering the local dev .env. Defaults to the repo-root .env.
+environ.Env.read_env(os.environ.get("ENV_FILE", str(BASE_DIR / ".env")))
 
 # ---- Core --------------------------------------------------------------------
 
@@ -29,6 +32,13 @@ ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
 # mobile QA, since the Origin/Referer host differs from localhost. Supply the
 # full scheme+host, e.g. CSRF_TRUSTED_ORIGINS=https://abc123.ngrok-free.app
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
+# Render injects the service's public hostname as RENDER_EXTERNAL_HOSTNAME.
+# Trust it automatically so the *.onrender.com domain needs no manual config.
+_render_host = env("RENDER_EXTERNAL_HOSTNAME", default="")
+if _render_host:
+    ALLOWED_HOSTS = list(ALLOWED_HOSTS) + [_render_host]
+    CSRF_TRUSTED_ORIGINS = list(CSRF_TRUSTED_ORIGINS) + [f"https://{_render_host}"]
 
 SITE_ID = 1
 ROOT_URLCONF = "laihub.urls"
@@ -161,10 +171,40 @@ STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
-}
+# Object storage (S3-compatible / Cloudflare R2) for the M6 split deployment.
+# When AWS_STORAGE_BUCKET_NAME is set, the default file storage switches to
+# object storage so the cloud web tier (uploads) and the home GPU worker
+# (results) can share files without a shared local filesystem. Unset in dev →
+# local FileSystemStorage under MEDIA_ROOT (no boto3 import, no behaviour change).
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")
+
+if AWS_STORAGE_BUCKET_NAME:
+    AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
+    AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL")  # R2: https://<acct>.r2.cloudflarestorage.com
+    AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="auto")
+    AWS_S3_SIGNATURE_VERSION = "s3v4"
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None              # R2 ignores ACLs; keep objects private
+    AWS_QUERYSTRING_AUTH = True         # serve user media via short-lived signed URLs
+    AWS_QUERYSTRING_EXPIRE = env.int("AWS_QUERYSTRING_EXPIRE", default=3600)
+
+    # Optional public custom domain (R2 public bucket). If set, URLs are public
+    # (no signing) — only enable if the bucket is meant to be world-readable.
+    _r2_custom_domain = env("AWS_S3_CUSTOM_DOMAIN", default="")
+    if _r2_custom_domain:
+        AWS_S3_CUSTOM_DOMAIN = _r2_custom_domain
+        AWS_QUERYSTRING_AUTH = False
+
+    STORAGES = {
+        "default": {"BACKEND": "storages.backends.s3.S3Storage"},
+        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    }
+else:
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    }
 
 # ---- Email -------------------------------------------------------------------
 

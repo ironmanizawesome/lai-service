@@ -1,0 +1,55 @@
+# Render Blueprint — laihub web tier (CPU only).
+#
+# This deploys ONLY the public web service. The GPU worker runs at home
+# (scripts/run_worker_cloud.ps1) and connects to the same Neon Postgres,
+# Upstash Redis, and Cloudflare R2 — there is no worker service on Render.
+#
+# Deploy:
+#   1. Push this repo to GitHub.
+#   2. render.com → New → Blueprint → pick this repo.
+#   3. Fill the `sync: false` secrets in the dashboard (see M6 setup guide).
+#
+# Free tier notes:
+#   - Spins down after ~15 min idle; first request after sleep cold-starts (~30-50s).
+#   - 512 MB RAM — keep gunicorn workers low.
+services:
+  - type: web
+    name: laihub-web
+    runtime: python
+    plan: free
+    region: singapore                 # closest free region to Korea
+    branch: main
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate"
+    startCommand: "gunicorn laihub.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 300"
+    healthCheckPath: /healthz/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: DJANGO_DEBUG
+        value: "False"
+      # Auto-generated secret; rotate from the dashboard if needed.
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      # RENDER_EXTERNAL_HOSTNAME is auto-trusted in settings; only set this for
+      # an extra custom domain (comma-separated). Optional.
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      # ── Shared data tier (set the SAME values on the home worker) ──────────
+      - key: DATABASE_URL                 # Neon Postgres (postgres://...sslmode=require)
+        sync: false
+      - key: CELERY_BROKER_URL            # Upstash Redis (rediss://...)
+        sync: false
+      - key: CELERY_RESULT_BACKEND        # Upstash Redis (rediss://.../1)
+        sync: false
+      - key: AWS_STORAGE_BUCKET_NAME      # Cloudflare R2 bucket name
+        sync: false
+      - key: AWS_ACCESS_KEY_ID            # R2 access key id
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY        # R2 secret access key
+        sync: false
+      - key: AWS_S3_ENDPOINT_URL          # https://<accountid>.r2.cloudflarestorage.com
+        sync: false
+      - key: AWS_S3_REGION_NAME
+        value: auto
