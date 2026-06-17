@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LAI 추세 — 더미 데이터 미리보기</title>
+
+  <!-- Chart.js 4 (MIT) — same CDN as the live service -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+  <style>
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f8fafc; color: #1f2937; margin: 0; padding: 2.5rem 1rem;
+    }
+    .card {
+      max-width: 760px; margin: 0 auto; background: #fff; border: 1px solid #e5e7eb;
+      border-radius: 16px; padding: 1.8rem 2rem 2.2rem; box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+    }
+    h1 { font-size: 1.05rem; color: #6b7280; font-weight: 500; margin: 0 0 0.2rem; }
+    h2 { font-size: 1.5rem; color: #14532d; margin: 0 0 1.2rem; }
+    .badge {
+      display: none; color: #b45309; background: #fffbeb; border: 1px solid #fde68a;
+      border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 0.85rem; margin-bottom: 0.8rem;
+    }
+    .caption {
+      margin-top: 1.1rem; font-size: 0.83rem; color: #9ca3af; line-height: 1.5;
+      border-top: 1px dashed #e5e7eb; padding-top: 0.9rem;
+    }
+    .caption b { color: #16a34a; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>딸기 1번 베드</h1>
+    <h2>LAI 추세</h2>
+    <p id="trend-badge" class="badge"></p>
+    <div style="position:relative;">
+      <canvas id="trend-chart" height="260"></canvas>
+    </div>
+    <p class="caption">
+      ※ <b>더미 데이터로 렌더한 예시</b>입니다. 추세·예측 그래프는 코드로 구현·동작이 완료됐고,
+      실제 측정 이력이 쌓이면 같은 화면이 그대로 그려집니다.
+      (초록 = LAI 실측, 주황 점선 = polyfit 기반 14일 예측)
+    </p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script>
+  // ── 더미 측정 데이터 (날짜, agg_column_lai) ─────────────────────────────
+  // 이 배열만 바꾸면 실제 서비스처럼 곡선/예측이 자동으로 다시 계산됩니다.
+  const MEASUREMENTS = [
+    { date: "2026-04-05", lai: 0.82 },
+    { date: "2026-04-12", lai: 1.15 },
+    { date: "2026-04-19", lai: 1.52 },
+    { date: "2026-04-26", lai: 1.83 },
+    { date: "2026-05-03", lai: 2.10 },
+    { date: "2026-05-10", lai: 2.30 },
+    { date: "2026-05-17", lai: 2.44 },
+  ];
+  const HORIZON_DAYS = 14;     // 서비스와 동일
+  const R2_LOW = 0.3;          // 서비스와 동일 (이하면 신뢰도 낮음 배지)
+
+  // ── services.py 미러링: deg-2(N>=5) / deg-1 최소제곱 + R² + 14일 예측 ──
+  function solveLinearSystem(A, b) {        // Gaussian elimination
+    const n = b.length;
+    const M = A.map((row, i) => [...row, b[i]]);
+    for (let col = 0; col < n; col++) {
+      let piv = col;
+      for (let r = col + 1; r < n; r++) if (Math.abs(M[r][col]) > Math.abs(M[piv][col])) piv = r;
+      [M[col], M[piv]] = [M[piv], M[col]];
+      for (let r = 0; r < n; r++) {
+        if (r === col) continue;
+        const f = M[r][col] / M[col][col];
+        for (let c = col; c <= n; c++) M[r][c] -= f * M[col][c];
+      }
+    }
+    return M.map((row, i) => row[n] / row[i]);
+  }
+
+  function polyfit(xs, ys, deg) {           // returns coeffs [a0, a1, ... a_deg]
+    const n = xs.length, m = deg + 1;
+    const A = Array.from({ length: m }, () => Array(m).fill(0));
+    const b = Array(m).fill(0);
+    for (let i = 0; i < m; i++) {
+      for (let j = 0; j < m; j++)
+        for (let k = 0; k < n; k++) A[i][j] += Math.pow(xs[k], i + j);
+      for (let k = 0; k < n; k++) b[i] += Math.pow(xs[k], i) * ys[k];
+    }
+    return solveLinearSystem(A, b);         // [a0, a1, (a2)]
+  }
+
+  const polyval = (c, x) => c.reduce((acc, ci, i) => acc + ci * Math.pow(x, i), 0);
+
+  // ── 데이터 준비 ──────────────────────────────────────────────────────────
+  const t0 = new Date(MEASUREMENTS[0].date);
+  const xs = MEASUREMENTS.map(m => (new Date(m.date) - t0) / 86400000); // days
+  const ys = MEASUREMENTS.map(m => m.lai);
+  const n = xs.length;
+  const deg = n >= 5 ? 2 : 1;
+  const coeffs = polyfit(xs, ys, deg);
+
+  // R²
+  const yMean = ys.reduce((a, v) => a + v, 0) / n;
+  let ssRes = 0, ssTot = 0;
+  for (let i = 0; i < n; i++) { ssRes += (ys[i] - polyval(coeffs, xs[i])) ** 2; ssTot += (ys[i] - yMean) ** 2; }
+  const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 1;
+
+  const addDays = (base, d) => { const x = new Date(base); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); };
+
+  const actual = MEASUREMENTS.map(m => ({ x: m.date, y: m.lai }));
+  const xLast = xs[n - 1];
+  const forecast = [];
+  for (let d = 0; d <= HORIZON_DAYS; d++)
+    forecast.push({ x: addDays(t0, Math.round(xLast) + d), y: Math.round(polyval(coeffs, xLast + d) * 1000) / 1000 });
+
+  // ── 신뢰도 배지 (서비스 동일) ───────────────────────────────────────────
+  if (r2 < R2_LOW) {
+    const badge = document.getElementById("trend-badge");
+    badge.style.display = "block";
+    badge.textContent = `⚠ 추세 신뢰도 낮음 (R²=${r2.toFixed(2)}) — 측정이 더 필요합니다.`;
+  }
+
+  // ── 차트 (서비스 detail.html과 동일한 색/옵션) ──────────────────────────
+  new Chart(document.getElementById("trend-chart"), {
+    type: "line",
+    data: {
+      datasets: [
+        {
+          label: "LAI 실측", data: actual, parsing: false, fill: true,
+          borderColor: "#22c55e", backgroundColor: "rgba(34,197,94,0.12)",
+          tension: 0.3, pointRadius: 5,
+        },
+        {
+          label: "예측 (14일)", data: forecast, parsing: false, fill: true,
+          borderColor: "#f59e0b", backgroundColor: "rgba(245,158,11,0.08)",
+          borderDash: [6, 4], tension: 0.2, pointRadius: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { type: "time", time: { unit: "day", tooltipFormat: "yyyy-MM-dd" }, title: { display: true, text: "날짜" } },
+        y: { title: { display: true, text: "LAI (agg_column)" }, beginAtZero: true },
+      },
+      plugins: {
+        legend: { position: "bottom" },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(3)}` } },
+      },
+    },
+  });
+  </script>
+</body>
+</html>
