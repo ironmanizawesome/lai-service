@@ -344,6 +344,10 @@ def process_measurement(self, measurement_id: str) -> str:
         except Exception as prev_exc:
             print(f"[pipeline] Preview render failed (non-fatal): {prev_exc}")
 
+        # NPZ는 결과가 DB+R2에 저장된 후 더 이상 필요 없음 — 즉시 삭제
+        with contextlib.suppress(OSError):
+            npz_path.unlink(missing_ok=True)
+
         # ── Done ──────────────────────────────────────────────────────────────
         m.status = "done"
         m.progress_pct = 100
