@@ -215,6 +215,14 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@laihub.local")
 
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6379/1")
+
+# Upstash Redis uses TLS (rediss://) with a managed cert — disable cert verification
+if CELERY_BROKER_URL.startswith("rediss://"):
+    import ssl as _ssl
+    _redis_ssl = {"ssl_cert_reqs": _ssl.CERT_NONE}
+    CELERY_BROKER_USE_SSL = _redis_ssl
+    CELERY_REDIS_BACKEND_USE_SSL = _redis_ssl
+
 CELERY_TASK_ROUTES = {
     "apps.pipeline.tasks.reconstruct": {"queue": "gpu"},
     "apps.pipeline.tasks.*": {"queue": "cpu"},
