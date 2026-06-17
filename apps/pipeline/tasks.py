@@ -83,6 +83,19 @@ def _unproject_for_preview(
 # Pipeline stages
 # ---------------------------------------------------------------------------
 
+def _video_duration_s(video_path: str) -> float | None:
+    """Return video duration in seconds via ffprobe, or None on failure."""
+    try:
+        r = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", video_path],
+            capture_output=True, text=True, timeout=30,
+        )
+        return float(r.stdout.strip())
+    except Exception:
+        return None
+
+
 def _kickoff(m) -> None:
     """Validate that a video is attached and present in the storage backend.
 
@@ -161,7 +174,7 @@ def _reconstruct(video_path: str, npz_path: Path, fps: int) -> None:
         "--first_k", "0",
         "--image_sizes", "644",
         "--max_frame_num", "1200",
-        "--max_frames", "600",
+        "--max_frames", "200",
         "--max_height", "364",
         "--use_sdpa",
         "--offload",
@@ -299,6 +312,11 @@ def process_measurement(self, measurement_id: str) -> str:
         npz_path = npz_dir / f"{m.id}_644.npz"
 
         with _local_video(m) as video_path:
+            dur = _video_duration_s(video_path)
+            if dur is not None:
+                n_frames = min(int(m.fps_target * dur), 200)
+                est_min = max(1, round(n_frames * 6 / 60))
+                _set_status(m, "reconstruct", f"3D 재건 중 — 약 {est_min}분 예상 ({n_frames}프레임)", 25)
             _reconstruct(video_path, npz_path, fps=m.fps_target)
 
         # ── 3. Analyze: pipeline.run_pipeline → JSON ──────────────────────────
