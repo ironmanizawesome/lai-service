@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ project.name }}{% endblock %}
+
 {% block content %}
 <h1>{{ project.name }}</h1>
 <p class="muted">
@@ -11,27 +12,111 @@
 
 <p><a href="{% url 'projects:measure' project.pk %}" class="btn">📸 새 측정</a></p>
 
-<h2 style="margin-top: 2rem;">측정 회차</h2>
-{% with measurements=project.measurements.all %}
-  {% if measurements %}
-    {% for m in measurements %}
-      <div class="card">
-        <p>
-          <a href="{% url 'measurements:detail' m.pk %}" style="color: var(--accent);">
-            {{ m.captured_at|date:"Y-m-d H:i" }}
-          </a>
-        </p>
-        <p class="muted">
-          상태: {{ m.get_status_display }}
-          {% if m.status == "done" and m.result %}
-            · 피복률 {{ m.result.agg_cover_fraction|floatformat:2 }}
-            · LAI {{ m.result.agg_column_lai|floatformat:2 }}
-          {% endif %}
-        </p>
-      </div>
-    {% endfor %}
-  {% else %}
-    <p class="muted">아직 측정 기록이 없어요. "새 측정"으로 영상을 올려보세요.</p>
-  {% endif %}
-{% endwith %}
+{# ── LAI 추세 차트 (측정 2건 이상 + TrendSnapshot 존재 시) ────────────── #}
+<section style="margin-top:2rem;">
+  <h2>LAI 추세</h2>
+  <div id="trend-wrap" style="position:relative;max-width:720px;">
+    <canvas id="trend-chart" height="260"></canvas>
+    <p id="trend-msg" class="muted" style="display:none;"></p>
+  </div>
+</section>
+
+{# ── 측정 회차 목록 ───────────────────────────────────────────────────── #}
+<section style="margin-top:2rem;">
+  <h2>측정 회차</h2>
+  {% with measurements=project.measurements.all %}
+    {% if measurements %}
+      {% for m in measurements %}
+        <div class="card">
+          <p>
+            <a href="{% url 'measurements:detail' m.pk %}" style="color:var(--accent);">
+              {{ m.captured_at|date:"Y-m-d H:i" }}
+            </a>
+          </p>
+          <p class="muted">
+            상태: {{ m.get_status_display }}
+            {% if m.status == "done" and m.result %}
+              · 피복률 {{ m.result.agg_cover_fraction|floatformat:2 }}
+              · LAI {{ m.result.agg_column_lai|floatformat:2 }}
+            {% endif %}
+          </p>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted">아직 측정 기록이 없어요. "새 측정"으로 영상을 올려보세요.</p>
+    {% endif %}
+  {% endwith %}
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script>
+(function () {
+  const trendUrl = "{% url 'projects:trend_json' project.pk %}";
+  const wrap = document.getElementById("trend-wrap");
+  const canvas = document.getElementById("trend-chart");
+  const msg = document.getElementById("trend-msg");
+
+  fetch(trendUrl)
+    .then(r => r.json())
+    .then(data => {
+      if (data.n_points < 2) {
+        canvas.style.display = "none";
+        msg.style.display = "";
+        msg.textContent = "측정 데이터가 2건 이상 필요합니다.";
+        return;
+      }
+
+      // Low-confidence badge
+      if (data.low_confidence) {
+        const badge = document.createElement("p");
+        badge.style.cssText = "color:#f59e0b;font-size:.85rem;margin-bottom:.5rem;";
+        badge.textContent = `⚠ 추세 신뢰도 낮음 (R²=${data.r_squared?.toFixed(2) ?? "—"}) — 측정이 더 필요합니다.`;
+        wrap.insertBefore(badge, canvas);
+      }
+
+      const chartData = {
+        datasets: data.datasets.map(ds => ({
+          ...ds,
+          fill: true,
+          parsing: false,  // data already {x, y}
+        })),
+      };
+
+      new Chart(canvas, {
+        type: "line",
+        data: chartData,
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              type: "time",
+              time: { unit: "day", tooltipFormat: "yyyy-MM-dd" },
+              title: { display: true, text: "날짜" },
+            },
+            y: {
+              title: { display: true, text: "LAI (agg_column)" },
+              beginAtZero: true,
+            },
+          },
+          plugins: {
+            legend: { position: "bottom" },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(3)}`,
+              },
+            },
+          },
+        },
+      });
+    })
+    .catch(() => {
+      canvas.style.display = "none";
+      msg.style.display = "";
+      msg.textContent = "추세 데이터를 불러오지 못했습니다.";
+    });
+})();
+</script>
 {% endblock %}

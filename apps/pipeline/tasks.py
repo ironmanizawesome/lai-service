@@ -306,6 +306,13 @@ def process_measurement(self, measurement_id: str) -> str:
         m.finished_at = timezone.now()
         m.save(update_fields=["status", "progress_pct", "status_msg", "finished_at"])
 
+        # Recompute trend (best-effort — failure doesn't abort the task)
+        try:
+            from apps.analytics.services import update_trend
+            update_trend(m.project_id)
+        except Exception as trend_exc:
+            print(f"[pipeline] Trend update failed (non-fatal): {trend_exc}")
+
     except Exception:
         m.status = "failed"
         m.error_trace = traceback.format_exc()

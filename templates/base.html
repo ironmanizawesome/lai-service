@@ -56,6 +56,7 @@
   <main>
     {% block content %}{% endblock %}
   </main>
+  {% block extra_scripts %}{% endblock %}
   {% if user.is_authenticated %}
   <nav class="nav-bottom">
     <a href="{% url 'projects:dashboard' %}" class="{% if request.resolver_match.namespace == 'projects' %}active{% endif %}">내 작물</a>
