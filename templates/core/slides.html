@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>LAIon — 작물 LAI 추정 웹 서비스</title>
+
+  <!-- reveal.js core (MIT License, https://revealjs.com) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css" id="theme">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css">
+  <!-- Korean font -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+
+  <style>
+    :root {
+      --r-main-font: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --r-heading-font: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --accent: #16a34a;
+      --accent-dark: #14532d;
+      --accent-soft: #bbf7d0;
+    }
+    .reveal { font-size: 30px; color: #1f2937; }
+    .reveal .slides { text-align: left; }
+
+    .reveal h1 { font-size: 2.0em; color: var(--accent-dark); line-height: 1.18; letter-spacing: -0.02em; }
+    .reveal h2 {
+      font-size: 1.42em; color: var(--accent-dark); text-transform: none;
+      border-bottom: 3px solid var(--accent-soft); padding-bottom: 0.22em; margin-bottom: 0.55em;
+      letter-spacing: -0.01em;
+    }
+    .reveal h3 { color: #166534; text-transform: none; font-size: 1.15em; }
+
+    .reveal strong { color: var(--accent); }
+    .reveal a { color: var(--accent); }
+
+    .reveal ul, .reveal ol { display: block; margin-left: 0.4em; }
+    .reveal li { margin: 0.28em 0; line-height: 1.4; }
+    .reveal li li { font-size: 0.92em; color: #374151; }
+
+    .reveal table { font-size: 0.74em; margin: 0.3em auto; border-collapse: collapse; }
+    .reveal table th { background: var(--accent-dark); color: #fff; padding: 0.4em 0.7em; border: none; }
+    .reveal table td { padding: 0.38em 0.7em; border-bottom: 1px solid #e5e7eb; }
+    .reveal table tr:nth-child(even) td { background: #f0fdf4; }
+
+    .reveal pre { width: 100%; box-shadow: none; margin: 0.5em 0; }
+    .reveal pre code {
+      padding: 0.9em 1.1em; font-size: 0.62em; line-height: 1.4;
+      background: #f6f8fa; color: #1f2937; border: 1px solid #e5e7eb; border-radius: 10px;
+      max-height: 520px; font-family: 'D2Coding', 'Consolas', 'Courier New', monospace;
+    }
+
+    .reveal blockquote {
+      background: #f0fdf4; border-left: 5px solid var(--accent);
+      width: 100%; box-shadow: none; font-size: 0.92em; font-style: normal;
+      padding: 0.7em 1em; border-radius: 0 8px 8px 0; color: #14532d;
+    }
+    .reveal blockquote p { margin: 0.25em 0; }
+
+    /* Title slide accents */
+    .reveal h1 + h3 { color: var(--accent); margin-top: 0.2em; font-weight: 500; }
+
+    .reveal .slide-number { background: var(--accent); font-size: 16px; }
+    .reveal .progress { color: var(--accent); height: 5px; }
+
+    .reveal li { list-style-position: outside; }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <section data-markdown
+               data-separator="^\r?\n---\r?\n$"
+               data-separator-notes="^Note:">
+        <textarea data-template>
+
+# LAIon
+### 3D 재건 AI로 작물 LAI를 추정하는 웹 서비스
+
+202117476 이규현 / 응용소프트웨어개발
+
+> 스마트폰 하나로 작물을 파악하는
+
+Note: 오늘은 "남의 논문 소개"가 아니라, 그 기술을 가져다 실제로 동작하는 서비스로 만든 이야기입니다. 원리 → 응용 → 서비스 순서로 갑니다.
+
+---
+
+## 한 장 요약
+
+문제 — 잎이 얼마나 무성한지(LAI) 재려면 잎을 따거나 비싼 장비가 필요했음
+
+아이디어 — 폰 영상 → AI가 3D로 재건 → 작물의 잎 양을 추정
+
+만든 것 — 누구나 폰으로 찍어 올리면 결과를 받는 웹 서비스 (회원가입·업로드·결과·성장 추세까지)
+
+오늘 이야기 — ① 왜 어려운 문제였나 → ② AI가 어떻게 푸나 → ③ 어떻게 서비스로 만들었나
+
+Note: 이 슬라이드가 전체 지도. 청중이 길을 잃으면 여기로 돌아온다.
+
+---
+
+## 그런데 LAI가 뭐길래?
+
+LAI (엽면적지수) — 땅 면적당 잎이 얼마나 빽빽한지를 나타내는 숫자
+
+- 작물의 광합성 능력·생육 상태를 보는 핵심 지표
+- 높을수록 잎이 무성함
+
+기존 측정 방식의 불편함
+- 🌿 잎을 직접 따서 면적을 잼 → 작물을 망가뜨림
+- 💸 LAI-2200 같은 전용 장비 → 비싸고 다루기 어려움
+- 📋 결국 농가에서 자주 측정하기 어려움
+
+> 그래서 목표는 "폰으로 찍으면 끝"
+
+Note: 청중이 농업 비전공이어도 "잎이 빽빽한 정도"로만 이해하면 충분.
+
+---
+
+## 그런데, 작물 모니터링 기술은 이미 많지 않나?
+
+가장 먼저 나올 질문 — "굳이 이걸 왜?"
+
+| 기존 방식 | 무엇을 보나 | 한계 |
+|---|---|---|
+| 위성 원격탐사 | 식생지수(NDVI) | 해상도 낮음 · 구름 · 재방문 느림 |
+| 드론 멀티스펙트럴 | 빛 반사(색) | 구조가 아닌 '색' → LAI 간접·포화 |
+| LiDAR (지상/드론) | 3D 구조 | 정밀하지만 비싸고 무거움 |
+| 광학 센서(LAI-2200) | 한 점의 투과율 | 노동집약 · 좁은 범위 |
+
+→ 저비용과 3D 구조, 둘 다 잡은 방법은 아직 없음
+
+Note: 기존 시스템을 인정하고 시작한다. 무시가 아니라 "여기가 비어있다"를 짚는 게 설득력.
+
+---
+
+## 우리의 자리: 저비용 × 3D 구조
+
+단안 카메라(폰) 한 대 + AI 3D 재건 — 그 빈칸을 메움
+
+- 📷 LiDAR 없이 일반 카메라만으로 3D 복원 → 장비비 거의 0
+- 🌿 색(지수)이 아니라 잎의 3D 형태, 즉 부피와 피복을 직접 잼
+- 📱 그리고 누구나 폰으로 쓰게 서비스로 — 저비용 도구는 '접근성'이 생명
+
+> 비싼 LiDAR의 정밀함과 폰의 저비용, 그 사이를 메움<br>
+> 명령어를 직접 쳐야 하는 도구가 아니라 '앱'으로 만든 이유 — 써야 의미가 있으니까
+
+Note: "왜 단안 카메라?" = 저비용. "왜 앱?" = 저비용 도구는 접근성이 핵심. CLI(명령어로 돌리는 도구)는 개발자만 쓸 수 있다는 점을 한 마디로. 여기가 발표의 셀링포인트.
+
+---
+
+## 데모: 우리가 만든 것
+
+```
+ 📱 폰으로 작물 10~15초 촬영
+        │   (또는 갤러리 영상 업로드)
+        ▼
+ ☁️  웹에 업로드 → "분석 중..." 진행 표시
+        │
+        ▼
+ 📊 결과: 화분별 지표 · 3D 미리보기 · 성장 추세 그래프
+```
+
+- 회원가입 → 작물 등록 → 영상 업로드 → 결과 확인까지 한 흐름
+- 모바일 최적화 (홈 화면에 앱처럼 추가 가능)
+
+> *(여기서 실제 서비스 화면 / 짧은 라이브 데모)*
+
+Note: 가능하면 실제 배포된 URL을 띄워서 1건 시연. 안 되면 결과 슬라이드의 스크린샷으로 대체.
+
+---
+
+## 핵심 질문
+
+> ### "평범한 폰 영상에서, 어떻게 3D 모양과 잎의 양이 나올까?"
+
+영상은 그냥 2D 사진의 연속일 뿐인데 —
+
+- 작물의 입체 형태를 어떻게 알아내고
+- 거기서 잎이 얼마나 되는지(면적·부피)를 어떻게 잴까?
+
+→ 그 비밀이 3D 재건 AI에 있음. 잠깐 원리를 보고 감
+
+Note: 여기가 데모톤 → 이해톤으로 넘어가는 전환점. "이게 어떻게 가능한지 이해했다"를 보여줄 구간.
+
+---
+
+## 배경 ① 원래는 어떻게 했나
+
+여러 사진에서 3D를 만드는 고전 방식 두 가지:
+
+| | SfM (예: COLMAP) | SLAM |
+|---|---|---|
+| 방식 | 모든 사진을 한 번에 계산 | 한 프레임씩 실시간 |
+| 강점 | 정확함 | 빠름 |
+| 약점 | 느림, 사진 늘면 폭증 | 오차 누적(drift) |
+
+- 둘 다 사람이 만든 규칙(특징점·매칭)으로 수학을 푸는 방식
+- 공통 한계: 작물의 잎은 비슷한 무늬가 반복돼서 → 이 방식들이 특히 약함
+
+Note: 깊이 안 들어간다. "수학으로 푸는 옛날 방식엔 한계가 있었다"만 전달.
+
+---
+
+## 배경 ② LingBot-Map: AI가 3D를 한 번에
+
+핵심 전환 — 수학으로 풀던 걸 사전학습된 AI가 통째로 예측
+
+```
+이미지 여러 장 ─▶ Transformer (DINOv2 기반) ─▶ 3D 점 + 카메라 위치를 "한 번에"
+```
+
+- Feed-forward — 반복 최적화(Bundle Adjustment) 없음 → 빠름
+- Foundation Model — 미리 학습돼 재학습 불필요
+- 긴 영상도 OK — 앞 몇 프레임으로 실제 크기(scale)를 잡고(Phase 1), 이후 한 장씩 빠르게 이어붙임(Phase 2). 계산 결과를 저장(KV Cache)해 drift(오차 누적)를 억제
+
+> 옛날 방식이 "퍼즐을 푼다"면, 이건 "보자마자 답을 앎" — 그것도 긴 영상에서
+
+Note: 배경②+③ 통합 슬라이드. 전공 깊은 수업이면 Phase1=bidirectional / Phase2=causal, scale anchor를 구두로 더. 일반 수업이면 이 한 장으로 충분.
+
+---
+
+## 응용 ① map-LAIpot: 3D 점에서 잎 지표 뽑기
+
+LingBot-Map은 3D 점까지만 줌. 거기서 잎 지표를 뽑아내는 단계를 직접 구현
+
+```
+3D 점 구름
+   ① up_vector  — 어느 쪽이 '위'인지 추정 (중력 방향)
+   ② pots       — 화분/베드를 각각 분리
+   ③ lai        — 화분마다 두 갈래로 산출
+```
+
+두 갈래 하이브리드 (강점이 서로 다름):
+- 피복률 (footprint) — 위에서 본 잎 실루엣 비율. 스케일에 강건한 직관적 기준
+- 부피 × LAD — 외피 부피에 엽면적밀도(LAD)를 곱해 '숨은 잎'까지 추정 → LAI 환산
+
+화분이 여러 개여도 각각 따로(per-pot), 온실 화분·베드를 옆에서 촬영하는 시나리오에 맞춤
+
+Note: 핵심 정직성 — 우리가 직접 재는 건 '3D 형태'(부피·피복)다. LAI로 가려면 LAD(엽면적밀도=단위 부피당 잎 면적)를 곱해야 하는데, LAD는 작물·생육단계마다 다른 값이라 보정이 필요하다(다음 한계 슬라이드). 즉 'LAI를 직접 잰다'기보단 '형태를 재고 LAI를 추정한다'가 정확. LingBot-Map은 안 건드리고 출력만 활용 → 재사용성.
+
+---
+
+## 응용 ② 한 번이 아니라, 추세로
+
+한 번 재고 끝이 아니라 — 여러 번 측정해 성장 흐름을 봄
+
+- 측정할 때마다 결과를 기록 → 시계열 그래프
+- 단순 회귀(polyfit)로 앞으로의 성장 예측 + 신뢰 구간
+- 데이터가 적거나 들쭉날쭉하면 "추세 신뢰도 낮음" 표시 (과신 방지)
+
+절대 수치를 누적·비교하는 구조라, 측정 이력만 쌓이면 그대로 동작 — 지금은 더미 데이터로 그래프 모습을 확인
+
+> "지금 이만큼 자랐고, 이대로면 2주 뒤 이쯤 될 것"
+
+Note: 단일 측정 도구가 아니라 '추적 서비스'라는 점이 차별점. 추세 그래프는 코드로 구현·동작은 끝났지만, 실제 측정 이력이 아직 안 쌓여 정확도 검증은 못 했다. 대신 더미 데이터를 넣어 그래프가 어떻게 보이는지 캡처로 보여준다.
+
+---
+
+## 기술 스택: 어떻게 서비스로 만들었나
+
+웹은 무료 클라우드, 무거운 AI 계산은 로컬 GPU로 분리
+
+```
+ 📱 사용자 폰
+     │  업로드
+     ▼
+ ☁️ Render (웹 서버, 무료)  ──기록──▶  Neon(DB) · R2(파일 저장)
+     │  작업 큐 (Upstash)
+     ▼
+ 🖥️ 로컬 GPU 워커 (RTX 5080)  ──▶ LingBot-Map 추론 + LAI 계산 → 결과 업로드
+```
+
+- 웹 서버엔 GPU가 없어도 됨 → 무료 호스팅으로 운영
+- GPU는 로컬 머신이 큐를 받아 처리 (바깥으로 나가는 연결만 → 보안 OK)
+- Django + Celery 기반, 영상·결과는 클라우드(R2)에 보관
+
+Note: 원래는 추론용 클라우드 GPU를 따로 빌리려 했지만, 비용을 아끼려고 '이미 가진 로컬 GPU'를 활용했다 — 저비용 컨셉과도 맞물린다. 단점도 솔직히 말할 것: 로컬 머신을 계속 켜둬야 하고(상시 가동), 전원·네트워크가 끊기면 멈춘다. 사용량이 늘면 이 워커 자리만 클라우드 GPU로 바꾸면 되고, 분리 배포 구조는 그대로다.
+
+---
+
+## 데이터 설계: 수업에서 배운 ORM 관계
+
+사용자 → 작물 → 측정 → 결과 위계를 Django ORM으로 모델링
+
+```
+User
+ └─1:N─ CropProject ─────N:N───── Tag
+          ├─1:N─ Measurement ─1:1─ MeasurementResult ─1:N─ ResultComponent
+          │                                  └─1:1─ Preview3D
+          └─1:1─ TrendSnapshot
+```
+
+- 1:1 (OneToOneField) — 측정↔결과 · 결과↔3D미리보기 · 작물↔추세스냅샷
+- 1:N (ForeignKey) — 사용자→작물 · 작물→측정 · 결과→화분(컴포넌트)
+- N:N (ManyToManyField) — 작물 ↔ 태그 (한 작물에 여러 태그, 한 태그가 여러 작물을 묶음)
+
+Note: 수업에서 배운 ORM 관계를 어디에 썼는지 보여주는 슬라이드. 1:1은 '반드시 하나만 대응'(측정 한 건의 결과는 하나), 1:N은 계층(작물 하나에 측정 여럿), N:N은 태그(작물과 태그가 서로 여러 개로 연결). 태그(Tag)는 다대다를 보여주려고 추가한 공유 라벨이다.
+
+---
+
+## 결과 화면
+
+- 3D 미리보기 — 원본 RGB 점구름 + 잎만 분리한 모습을 나란히
+- 화분별 결과 표 + 집계값 (피복률 · 부피 LAI)
+- 성장 추세 그래프 (Chart.js) — 더미 데이터로 렌더한 예시
+
+> *(실제 스크린샷: 3D 프리뷰 / 결과 페이지 / 추세 그래프(더미))*
+
+Note: 시각 자료로 승부하는 슬라이드. 텍스트 최소, 이미지 크게. 추세 그래프는 더미 데이터로 띄운 화면임을 한 마디 덧붙이면 정직.
+
+---
+
+## 화분에서 끝나지 않는다 — 확장성
+
+```
+지금:  온실 화분·베드   (옆에서 폰 촬영, 수십 초)
+   ▼
+다음:  노지 작물        (드론에 단안 카메라 탑재)
+   ▼
+멀리:  옥수수밭 같은 넓은 면적을 한 번의 비행으로
+```
+
+- 왜 넓은 밭이 가능? — 핵심은 drift(오차 누적)에 강함
+  - 한 프레임씩 잇는 보통 방식(SLAM)은 멀리 갈수록 오차가 쌓여 넓은 밭에서 형태가 무너짐
+  - LingBot-Map은 기준 프레임(scale anchor) + KV Cache로 drift를 억제 → 긴 경로(넓은 면적)에서도 형태 유지
+- 단안 카메라라 드론에 가볍고 싸게 탑재 (LiDAR 드론보다 저렴)
+- 같은 파이프라인, 입력 규모만 키우면 됨 (화분 분리 → 구획 분리로 일반화)
+
+> 저비용 정밀 작물 모니터링을 소규모 온실부터 대규모 노지까지
+
+Note: 확장성의 진짜 근거는 'drift 억제'다. 옥수수밭처럼 길게 이동하며 찍으면 일반 SLAM은 오차가 누적돼 끝부분 형태가 틀어지는데, 이 모델은 scale anchor를 attention에 항상 살려두고 KV cache로 과거를 참조해 drift가 잘 안 생긴다. 그래서 '넓은 면적 = 긴 시퀀스'를 버틴다. 원리 슬라이드의 streaming/KV cache가 여기서 확장성 근거로 직접 연결된다.
+
+---
+
+## 솔직한 검증 상태 & 한계
+
+되는 것
+- 파이프라인 전 구간 동작 (업로드 → 3D → 화분별 지표 → 추세)
+- 실제 배포돼 폰에서 사용 가능
+
+아직 검증이 필요한 것
+- LAD(엽면적밀도) 보정 — 부피→LAI 환산 계수가 작물·생육단계마다 다름. 현재는 문헌 기본값(placeholder) → 파괴측정으로 보정 필요
+- 추세·예측 그래프 — 구현·동작은 완료, 실측 이력이 부족해 더미 데이터로 시연 (데이터만 쌓이면 검증 가능)
+- 잎 분리(세그멘테이션)가 녹색·크기 기반 → 실제 잎인지 추가 검증 필요
+- 모델이 캐노피 표면만 봄 (속잎은 못 뚫음) → 빽빽한 군락은 과소추정
+
+다음 단계
+- 기준물 포함 촬영으로 스케일·LAD 보정, SAM2로 잎 분리 고도화
+
+Note: 여기가 점수 포인트. 특히 LAD — 우리가 내는 'LAI'는 부피에 엽면적밀도를 곱한 추정치고, 그 밀도값이 아직 문헌 기본값이라 작물별 보정(파괴측정 회귀)이 남았다는 걸 솔직히 인정. 추세 그래프도 동작은 하지만 실측 검증은 아직. 표면만 본다는 한계(속잎 못 뚫음)도 같이. 한계를 먼저 인정하는 게 수업 발표 점수의 핵심.
+
+---
+
+## 정리
+
+1. 문제 — LAI 측정은 번거롭고 비쌌음
+2. 원리 — 3D 재건 AI(LingBot-Map)가 영상에서 입체 형태를 한 번에 뽑음
+3. 기여 — 화분별 피복률·부피 LAI를 산출하고, 시계열 추세까지 내는 파이프라인을 만듦
+4. 서비스 — 폰으로 쓰는 웹 서비스로 배포 (웹=무료 클라우드, GPU=로컬)
+
+> 핵심 — 남의 모델을 이해하고 → 실제 문제에 응용하고 → 동작하는 서비스로 끝까지 만듦
+
+### 감사합니다 — 질문 환영합니다
+
+Note: Q&A 예상 — 정확도(LAD 보정)? 다른 작물도 되나? 비용은? 처리 시간은? 상시 가동 부담은?
+
+        </textarea>
+      </section>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/markdown/markdown.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+  <script>
+    Reveal.initialize({
+      width: 1280,
+      height: 720,
+      margin: 0.06,
+      minScale: 0.2,
+      maxScale: 2.0,
+      hash: true,
+      slideNumber: 'c/t',
+      transition: 'slide',
+      transitionSpeed: 'fast',
+      plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ],
+    });
+  </script>
+</body>
+</html>
