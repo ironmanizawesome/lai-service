@@ -1,6 +1,12 @@
+import contextlib
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.files.storage import default_storage
 from django.shortcuts import get_object_or_404
-from django.views.generic import CreateView, DetailView
+from django.urls import reverse
+from django.views.generic import CreateView, DeleteView, DetailView
 
 from apps.core.mixins import OwnerRequiredMixin
 from apps.projects.models import CropProject
@@ -50,3 +56,29 @@ class StatusPartialView(OwnerRequiredMixin, DetailView):
     template_name = "measurements/_status.html"
     context_object_name = "m"
     owner_field = "project__owner"
+
+
+class MeasurementDeleteView(OwnerRequiredMixin, DeleteView):
+    model = Measurement
+    template_name = "measurements/detail.html"
+    owner_field = "project__owner"
+
+    def get_success_url(self):
+        return reverse("projects:detail", kwargs={"pk": self.object.project_id})
+
+    def form_valid(self, form):
+        m = self.object
+        # Clean up storage files (best-effort)
+        with contextlib.suppress(Exception):
+            if m.video and m.video.name:
+                default_storage.delete(m.video.name)
+        with contextlib.suppress(Exception):
+            result = m.result
+            if result.raw_lai_json_path:
+                default_storage.delete(result.raw_lai_json_path)
+            if hasattr(result, "preview") and result.preview.image:
+                default_storage.delete(result.preview.image.name)
+        with contextlib.suppress(Exception):
+            npz = Path(settings.MEDIA_ROOT) / "npz" / f"{m.id}_644.npz"
+            npz.unlink(missing_ok=True)
+        return super().form_valid(form)

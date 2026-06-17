@@ -72,4 +72,13 @@
     <a href="{% url 'projects:detail' measurement.project.pk %}" class="btn btn-secondary">추세 보기</a>
   </p>
 {% endif %}
+
+<form method="post" action="{% url 'measurements:delete' measurement.pk %}"
+      style="margin-top:2rem;"
+      onsubmit="return confirm('이 측정을 삭제할까요? 되돌릴 수 없어요.')">
+  {% csrf_token %}
+  <button type="submit" class="btn" style="background:#e11d48; color:#fff; border-color:#e11d48;">
+    측정 삭제
+  </button>
+</form>
 {% endblock %}

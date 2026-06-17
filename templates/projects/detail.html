@@ -10,7 +10,17 @@
 </p>
 {% if project.notes %}<p>{{ project.notes|linebreaks }}</p>{% endif %}
 
-<p><a href="{% url 'projects:measure' project.pk %}" class="btn">📸 새 측정</a></p>
+<p>
+  <a href="{% url 'projects:measure' project.pk %}" class="btn">📸 새 측정</a>
+  <form method="post" action="{% url 'projects:delete' project.pk %}"
+        style="display:inline;"
+        onsubmit="return confirm('프로젝트 전체와 모든 측정을 삭제할까요? 되돌릴 수 없어요.')">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-secondary" style="color:#e11d48; border-color:#e11d48;">
+      프로젝트 삭제
+    </button>
+  </form>
+</p>
 
 {# ── LAI 추세 차트 (측정 2건 이상 + TrendSnapshot 존재 시) ────────────── #}
 <section style="margin-top:2rem;">

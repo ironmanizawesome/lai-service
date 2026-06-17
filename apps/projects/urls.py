@@ -11,6 +11,7 @@ urlpatterns = [
     path("", views.DashboardView.as_view(), name="dashboard"),
     path("new/", views.ProjectCreateView.as_view(), name="create"),
     path("<uuid:pk>/", views.ProjectDetailView.as_view(), name="detail"),
+    path("<uuid:pk>/delete/", views.ProjectDeleteView.as_view(), name="delete"),
     path("<uuid:project_pk>/measure/", m_views.UploadView.as_view(), name="measure"),
     path("<uuid:pk>/trend.json", a_views.TrendJSONView.as_view(), name="trend_json"),
 ]
