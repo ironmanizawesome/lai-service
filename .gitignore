@@ -43,6 +43,9 @@ Thumbs.db
 celerybeat-schedule
 celerybeat.pid
 
+# Dev run logs (background runserver / celery output)
+*.log
+
 # Testing / coverage
 .coverage
 .pytest_cache/

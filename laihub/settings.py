@@ -25,6 +25,11 @@ SECRET_KEY = env(
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
 
+# CSRF trusted origins — needed when serving over an https tunnel (ngrok) for
+# mobile QA, since the Origin/Referer host differs from localhost. Supply the
+# full scheme+host, e.g. CSRF_TRUSTED_ORIGINS=https://abc123.ngrok-free.app
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
 SITE_ID = 1
 ROOT_URLCONF = "laihub.urls"
 WSGI_APPLICATION = "laihub.wsgi.application"

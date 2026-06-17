@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}오프라인 — LAI{% endblock %}
+{% block content %}
+<div class="empty">
+  <h1>📡 오프라인</h1>
+  <p class="muted">인터넷 연결이 끊겼어요. 연결되면 다시 시도해 주세요.</p>
+  <p style="margin-top:1.5rem;">
+    <a class="btn" href="{% url 'projects:dashboard' %}">다시 시도</a>
+  </p>
+</div>
+{% endblock %}
