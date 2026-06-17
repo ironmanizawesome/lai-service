@@ -198,9 +198,8 @@ def _analyze(npz_path: Path, crop: str, scale_factor: float) -> dict:
 
 
 def _render_preview(npz_path: Path, lai_result: dict) -> bytes:
-    """Render matplotlib 3D scatter PNG from leaf points (downsampled to 30k)."""
+    """Render side-by-side 3D scatter PNG: left=original RGB, right=ExG leaf points."""
     d = np.load(str(npz_path), allow_pickle=True)
-    # Sparse frame sample for speed
     stride = max(1, d["depth"].shape[0] // 40)
     idx = np.arange(0, d["depth"].shape[0], stride)
 
@@ -216,32 +215,48 @@ def _render_preview(npz_path: Path, lai_result: dict) -> bytes:
     if not valid.any():
         raise ValueError("No valid points for preview rendering")
     valid &= cf >= np.percentile(cf[valid], 45)
-    wp, col = wp[valid], col[valid]
+    wp_all, col_all = wp[valid], col[valid]
 
-    # ExG green-leaf proxy
-    exg = 2.0 * col[:, 1] - col[:, 0] - col[:, 2]
-    wp = wp[exg > 0.06]
-    if len(wp) == 0:
+    # ── 왼쪽: 원본 RGB 포인트 클라우드 ──────────────────────────────────
+    rng = np.random.default_rng(0)
+    n_rgb = min(len(wp_all), 20_000)
+    idx_rgb = rng.choice(len(wp_all), n_rgb, replace=False)
+    wp_rgb, col_rgb = wp_all[idx_rgb], col_all[idx_rgb]
+
+    # ── 오른쪽: ExG 잎 필터 + 높이 컬러 ────────────────────────────────
+    exg = 2.0 * col_all[:, 1] - col_all[:, 0] - col_all[:, 2]
+    wp_leaf = wp_all[exg > 0.06]
+    if len(wp_leaf) == 0:
         raise ValueError("No leaf points after ExG filter for preview")
-
-    if len(wp) > 30_000:
-        wp = wp[np.random.default_rng(0).choice(len(wp), 30_000, replace=False)]
+    if len(wp_leaf) > 20_000:
+        wp_leaf = wp_leaf[rng.choice(len(wp_leaf), 20_000, replace=False)]
 
     up = np.array(lai_result["up_vector"], dtype=np.float64)
-    heights = wp @ up
+    heights = wp_leaf @ up
     h_range = heights.max() - heights.min()
     h_norm = (heights - heights.min()) / max(h_range, 1e-8)
 
-    fig = plt.figure(figsize=(8, 6))
-    ax = fig.add_subplot(111, projection="3d")
-    ax.scatter(wp[:, 0], wp[:, 1], wp[:, 2], c=h_norm, cmap="YlGn", s=0.4, alpha=0.5)
-    n = lai_result["n_components"]
-    ax.set_title(f"LAI Preview — {n} component{'s' if n != 1 else ''}\n"
-                 f"cover={lai_result['agg_cover_fraction']:.2f}  "
-                 f"col_LAI={lai_result['agg_column_lai']:.2f}")
-    ax.set_xlabel("X"); ax.set_ylabel("Y"); ax.set_zlabel("Z")
-    fig.tight_layout()
+    # ── 렌더링 ────────────────────────────────────────────────────────────
+    fig, (ax_rgb, ax_leaf) = plt.subplots(
+        1, 2, figsize=(14, 6), subplot_kw={"projection": "3d"}
+    )
 
+    ax_rgb.scatter(wp_rgb[:, 0], wp_rgb[:, 1], wp_rgb[:, 2],
+                   c=col_rgb, s=0.4, alpha=0.5)
+    ax_rgb.set_title("원본 RGB 포인트 클라우드")
+    ax_rgb.set_xlabel("X"); ax_rgb.set_ylabel("Y"); ax_rgb.set_zlabel("Z")
+
+    ax_leaf.scatter(wp_leaf[:, 0], wp_leaf[:, 1], wp_leaf[:, 2],
+                    c=h_norm, cmap="YlGn", s=0.4, alpha=0.5)
+    n = lai_result["n_components"]
+    ax_leaf.set_title(
+        f"잎 포인트 (ExG 필터) — {n}개 컴포넌트\n"
+        f"피복률={lai_result['agg_cover_fraction']:.2f}  "
+        f"LAI={lai_result['agg_column_lai']:.2f}"
+    )
+    ax_leaf.set_xlabel("X"); ax_leaf.set_ylabel("Y"); ax_leaf.set_zlabel("Z")
+
+    fig.tight_layout()
     buf = BytesIO()
     fig.savefig(buf, format="png", dpi=100, bbox_inches="tight")
     plt.close(fig)
