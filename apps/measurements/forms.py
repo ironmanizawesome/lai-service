@@ -14,7 +14,6 @@ class MeasurementUploadForm(forms.ModelForm):
             "captured_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
             "video": forms.FileInput(attrs={
                 "accept": "video/*",
-                "capture": "environment",
             }),
         }
 
